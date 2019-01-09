@@ -97,5 +97,12 @@ sub transport_protocol_default
  return;
 }
 
+sub message_retrieve
+{
+ my ($self,$ndr,$id)=@_;
+ my $rc=$ndr->process('message','swichretrieve',[$id]);
+ return $rc;
+}
+
 ####################################################################################################
 1;

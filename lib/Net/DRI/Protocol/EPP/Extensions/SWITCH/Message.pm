@@ -1,6 +1,7 @@
-## Domain Registry Interface, Switch .CH/.LI EPP extensions
+## Domain Registry Interface, .ISPAPI message extensions
 ##
-## Copyright (c) 2008-2010 Tonnerre Lombard <tonnerre.lombard@sygroup.ch>.
+## Copyright (c) 2008-2010 UNINETT Norid AS, E<lt>http://www.norid.noE<gt>,
+##                    Trond Haugen E<lt>info@norid.noE<gt>
 ##                    All rights reserved.
 ##
 ## This file is part of Net::DRI
@@ -16,13 +17,12 @@
 #
 ####################################################################################################
 
-package Net::DRI::Protocol::EPP::Extensions::SWITCH;
+package Net::DRI::Protocol::EPP::Extensions::SWITCH::Message;
 
 use strict;
 
-use base qw/Net::DRI::Protocol::EPP/;
-
-use Net::DRI::Data::Contact::SWITCH;
+use Net::DRI::Util;
+use Net::DRI::Exception;
 
 our $VERSION=do { my @r=(q$Revision: 1.4 $=~/\d+/g); sprintf("%d".".%02d" x $#r, @r); };
 
@@ -30,7 +30,7 @@ our $VERSION=do { my @r=(q$Revision: 1.4 $=~/\d+/g); sprintf("%d".".%02d" x $#r,
 
 =head1 NAME
 
-Net::DRI::Protocol::EPP::Extensions::SWITCH - .CH/.LI EPP extensions for Net::DRI
+Net::DRI::Protocol::EPP::Extensions::ISPAPI::Message - EPP extension for Net::DRI
 
 =head1 DESCRIPTION
 
@@ -40,22 +40,24 @@ Please see the README file for details.
 
 For now, support questions should be sent to:
 
-E<lt>tonnerre.lombard@sygroup.chE<gt>
+E<lt>support@hexonet.netE<gt>
 
 Please also see the SUPPORT file in the distribution.
 
 =head1 SEE ALSO
 
-E<lt>http://oss.bsdprojects.net/projects/netdri/E<gt> or
 E<lt>http://www.dotandco.com/services/software/Net-DRI/E<gt>
 
 =head1 AUTHOR
 
-Tonnerre Lombard, E<lt>tonnerre.lombard@sygroup.chE<gt>
+Alexander Biehl, E<lt>abiehl@hexonet.netE<gt>
+Jens Wagner, E<lt>jwagner@hexonet.netE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2008-2010 Tonnerre Lombard <tonnerre.lombard@sygroup.ch>.
+Copyright (c) 2010 HEXONET GmbH, E<lt>http://www.hexonet.netE<gt>,
+Alexander Biehl <abiehl@hexonet.net>,
+Jens Wagner <jwagner@hexonet.net>
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
@@ -69,16 +71,30 @@ See the LICENSE file that comes with this distribution for more details.
 
 ####################################################################################################
 
-sub setup
-{
- my ($self,$rp)=@_;
- $self->capabilities('domain_update','status',undef);
- $self->capabilities('contact_update','status',undef);
- $self->factories('contact',sub { return Net::DRI::Data::Contact::SWITCH->new(); });
- return;
+sub register_commands {
+    my ( $class, $version ) = @_;
+
+    my %tmp = (
+        swichretrieve => [ \&Net::DRI::Protocol::EPP::Core::RegistryMessage::pollreq, \&parse_poll ],
+		delete   => [ \&Net::DRI::Protocol::EPP::Core::RegistryMessage::pollack ],
+    );
+
+    return { 'message' => \%tmp };
 }
 
-sub default_extensions { return qw/SecDNS11 GracePeriod SWITCH::Message/; }
+sub parse_poll {
+ my ($po,$otype,$oaction,$oname,$rinfo)=@_;
+ my $mes=$po->message();
+ return unless $mes->is_success();
+
+ my $msgid=$mes->msg_id();
+ return unless (defined($msgid) && $msgid);
+ $rinfo->{message}->{session}->{last_id}=$msgid; ## needed here and not lower below, in case of pure text registry message
+
+ ## Was there really a registry message with some content ?
+ return unless ($mes->result_code() == 1301 && (defined($mes->node_resdata()) || defined($mes->node_extension()) || defined($mes->node_msg())));
+
+}
 
 ####################################################################################################
 1;
